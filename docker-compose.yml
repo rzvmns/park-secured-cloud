@@ -1,0 +1,32 @@
+services:
+  parksecure-db:
+    image: postgres:16-alpine
+    container_name: parksecure-db
+    environment:
+      POSTGRES_DB: parksecure
+      POSTGRES_USER: parksecure
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - parksecure-db-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    restart: unless-stopped
+
+  parksecure-backend:
+    build: .
+    container_name: parksecure-backend
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://parksecure:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@parksecure-db:5432/parksecure
+      GATE_API_KEY: ${GATE_API_KEY:?Set GATE_API_KEY in .env}
+    depends_on:
+      - parksecure-db
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  parksecure-db-data:

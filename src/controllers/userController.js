@@ -8,7 +8,7 @@ const isPrivilegedRole = (role) => role === ROLES.ADMIN || role === ROLES.HR;
 const roleRequiresDivision = (role) => HR_MANAGED_USER_ROLES.includes(role);
 
 const validateUserPayload = (payload, actor, isUpdate = false) => {
-    const { email, password, role, divisionId, isActive } = payload;
+    const { email, password, role, divisionId, employeeId, isActive } = payload;
 
     if (!isUpdate && (!email || !password || !role)) {
         return 'email, password and role are required';
@@ -19,15 +19,19 @@ const validateUserPayload = (payload, actor, isUpdate = false) => {
     }
 
     if (actor.role === ROLES.HR && role !== undefined && !HR_MANAGED_USER_ROLES.includes(role)) {
-        return 'hr can create or modify only division_manager, operator or viewer users';
+        return 'hr can create or modify only division_manager, operator or viewer accounts';
     }
 
     if (role !== undefined && roleRequiresDivision(role) && !divisionId && !isUpdate) {
-        return 'divisionId is required for division_manager, operator and viewer users';
+        return 'divisionId is required for division_manager, operator and viewer accounts';
     }
 
     if (isActive !== undefined && typeof isActive !== 'boolean') {
         return 'isActive must be a boolean';
+    }
+
+    if (employeeId !== undefined && employeeId !== null && (!Number.isInteger(Number(employeeId)) || Number(employeeId) <= 0)) {
+        return 'employeeId must be a valid employee id';
     }
 
     return null;
@@ -35,16 +39,16 @@ const validateUserPayload = (payload, actor, isUpdate = false) => {
 
 const getUsers = async (req, res) => {
     try {
-        const users = await userService.getUsers(req.user);
+        const accounts = await userService.getUsers(req.user);
 
         return res.status(200).json({
             success: true,
-            data: users
+            data: accounts
         });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: 'Could not fetch users',
+            message: 'Could not fetch accounts',
             error: error.message
         });
     }
@@ -61,11 +65,11 @@ const createUser = async (req, res) => {
     }
 
     try {
-        const user = await userService.createUser(req.body);
+        const account = await userService.createUser(req.body);
 
         return res.status(201).json({
             success: true,
-            data: user
+            data: account
         });
     } catch (error) {
         return sendControllerError(res, error, 'Could not create user');
@@ -73,28 +77,28 @@ const createUser = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-    const userId = Number(req.params.id);
+    const accountId = Number(req.params.id);
 
-    if (!Number.isInteger(userId) || userId <= 0) {
+    if (!Number.isInteger(accountId) || accountId <= 0) {
         return res.status(400).json({
             success: false,
-            message: 'Valid user id is required'
+            message: 'Valid account id is required'
         });
     }
 
-    const existingUser = await userService.getUserById(userId);
+    const existingUser = await userService.getUserById(accountId);
 
     if (!existingUser) {
         return res.status(404).json({
             success: false,
-            message: 'User not found'
+            message: 'Account not found'
         });
     }
 
     if (req.user.role === ROLES.HR && isPrivilegedRole(existingUser.role)) {
         return res.status(403).json({
             success: false,
-            message: 'hr cannot modify admin or hr users'
+            message: 'hr cannot modify admin or hr accounts'
         });
     }
 
@@ -113,16 +117,16 @@ const updateUser = async (req, res) => {
     if (roleRequiresDivision(nextRole) && !nextDivisionId) {
         return res.status(400).json({
             success: false,
-            message: 'divisionId is required for division_manager, operator and viewer users'
+            message: 'divisionId is required for division_manager, operator and viewer accounts'
         });
     }
 
     try {
-        const user = await userService.updateUser(userId, req.body);
+        const account = await userService.updateUser(accountId, req.body);
 
         return res.status(200).json({
             success: true,
-            data: user
+            data: account
         });
     } catch (error) {
         return sendControllerError(res, error, 'Could not update user');
@@ -130,28 +134,35 @@ const updateUser = async (req, res) => {
 };
 
 const deleteUser = async (req, res) => {
-    const userId = Number(req.params.id);
+    const accountId = Number(req.params.id);
 
-    if (!Number.isInteger(userId) || userId <= 0) {
+    if (!Number.isInteger(accountId) || accountId <= 0) {
         return res.status(400).json({
             success: false,
-            message: 'Valid user id is required'
+            message: 'Valid account id is required'
+        });
+    }
+
+    if (req.user.accountId === accountId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Admin cannot delete the currently authenticated account'
         });
     }
 
     try {
-        const user = await userService.deleteUser(userId);
+        const account = await userService.deleteUser(accountId);
 
-        if (!user) {
+        if (!account) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'Account not found'
             });
         }
 
         return res.status(200).json({
             success: true,
-            data: user
+            data: account
         });
     } catch (error) {
         return sendControllerError(res, error, 'Could not delete user');

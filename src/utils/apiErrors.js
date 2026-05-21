@@ -1,6 +1,8 @@
 const CONSTRAINT_MESSAGES = {
     divisions_name_key: 'Division name already exists',
     users_email_key: 'Email already exists',
+    accounts_email_key: 'Email already exists',
+    uq_account_employee: 'Employee already has an account',
     employees_cnp_key: 'CNP already exists',
     employees_badge_code_key: 'Badge code already exists',
     employees_bluetooth_code_key: 'Bluetooth code already exists',
@@ -39,6 +41,13 @@ const getPgErrorResponse = (error) => {
 };
 
 const sendControllerError = (res, error, fallbackMessage) => {
+    if (error.statusCode) {
+        return res.status(error.statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+
     const pgError = getPgErrorResponse(error);
 
     if (pgError) {

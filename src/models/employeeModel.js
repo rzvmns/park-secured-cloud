@@ -14,13 +14,13 @@ const EmployeeModel = {
         accessStartTime: 'TIME NULL',
         accessEndTime: 'TIME NULL',
         isActive: 'BOOLEAN NOT NULL DEFAULT TRUE',
-        grantedByUserId: 'INTEGER REFERENCES users(user_id)',
+        grantedByAccountId: 'INTEGER REFERENCES accounts(account_id)',
         createdAt: 'TIMESTAMPTZ NOT NULL DEFAULT NOW()',
         updatedAt: 'TIMESTAMPTZ NOT NULL DEFAULT NOW()'
     },
     relations: {
         division: 'employees.division_id -> divisions.division_id',
-        grantedBy: 'employees.granted_by_user_id -> users.user_id'
+        grantedBy: 'employees.granted_by_account_id -> accounts.account_id'
     }
 };
 

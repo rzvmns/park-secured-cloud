@@ -3,6 +3,7 @@
 @gateApiKey = <GATE_API_KEY>
 @accessSeed = <ACCESS_SEED>
 @employeeId = 1
+@accountId = 2
 @divisionId = 1
 @smartphoneId = 1
 
@@ -34,32 +35,66 @@ Content-Type: application/json
 GET {{baseUrl}}/api/divisions
 Authorization: Bearer {{token}}
 
-### Create ordinary user as admin or HR
+### Create HR account as admin
 POST {{baseUrl}}/api/users
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "email": "operator.demo@parksecure.local",
-  "password": "operator123",
-  "role": "operator",
-  "divisionId": {{divisionId}},
+  "email": "hr.demo@parksecure.local",
+  "password": "hr123",
+  "role": "hr",
+  "divisionId": null,
+  "employeeId": null,
   "isActive": true
 }
 
-### Update ordinary user as admin or HR
-PUT {{baseUrl}}/api/users/2
+### Create division manager account linked to an employee
+POST {{baseUrl}}/api/users
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "isActive": true,
-  "role": "viewer",
-  "divisionId": {{divisionId}}
+  "email": "manager.demo@parksecure.local",
+  "password": "manager123",
+  "role": "division_manager",
+  "divisionId": {{divisionId}},
+  "employeeId": {{employeeId}},
+  "isActive": true
 }
 
-### Delete user permanently as admin only
-DELETE {{baseUrl}}/api/admin/users/2
+### Try creating a second account for the same employee - should return 409
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "email": "viewer.duplicate@parksecure.local",
+  "password": "viewer123",
+  "role": "viewer",
+  "divisionId": {{divisionId}},
+  "employeeId": {{employeeId}},
+  "isActive": true
+}
+
+### List accounts through compatibility /api/users endpoint
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{token}}
+
+### Deactivate account as admin or HR
+PUT {{baseUrl}}/api/users/{{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isActive": false,
+  "role": "viewer",
+  "divisionId": {{divisionId}},
+  "employeeId": null
+}
+
+### Delete account permanently as admin only
+DELETE {{baseUrl}}/api/admin/users/{{accountId}}
 Authorization: Bearer {{token}}
 
 ### Create employee

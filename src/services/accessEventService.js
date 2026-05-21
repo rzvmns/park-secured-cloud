@@ -28,6 +28,22 @@ const getAccessScope = (user, startIndex = 1) => {
 };
 
 const createAccessEvent = async (payload) => {
+    if (payload.smartphoneId) {
+        const smartphoneResult = await query(
+            `SELECT smartphone_id
+             FROM smartphones
+             WHERE smartphone_id = $1
+               AND employee_id = $2`,
+            [payload.smartphoneId, payload.employeeId]
+        );
+
+        if (smartphoneResult.rowCount === 0) {
+            const error = new Error('smartphoneId does not belong to employeeId');
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
     const result = await query(
         `INSERT INTO access_events (
             employee_id, smartphone_id, event_type, event_status, event_time, gate_code, source, notes

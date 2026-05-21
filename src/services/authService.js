@@ -3,17 +3,18 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
 
 const buildUserResponse = (user) => ({
-    userId: user.user_id,
+    accountId: user.account_id,
     email: user.email,
     role: user.role,
     divisionId: user.division_id,
+    employeeId: user.employee_id,
     isActive: user.is_active
 });
 
 const login = async ({ email, password }) => {
     const result = await query(
-        `SELECT user_id, email, password_hash, role, division_id, is_active
-         FROM users
+        `SELECT account_id, email, password_hash, role, division_id, employee_id, is_active
+         FROM accounts
          WHERE email = $1`,
         [email]
     );
@@ -32,10 +33,11 @@ const login = async ({ email, password }) => {
 
     const token = jwt.sign(
         {
-            userId: user.user_id,
+            accountId: user.account_id,
             email: user.email,
             role: user.role,
-            divisionId: user.division_id
+            divisionId: user.division_id,
+            employeeId: user.employee_id
         },
         process.env.JWT_SECRET,
         { expiresIn: '8h' }

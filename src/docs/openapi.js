@@ -14,11 +14,12 @@ const openApiSpec = {
     tags: [
         { name: 'Health' },
         { name: 'Auth' },
-        { name: 'Users' },
+        { name: 'Users', description: 'Compatibility API for authentication accounts stored in the accounts table.' },
         { name: 'Divisions' },
         { name: 'Employees' },
         { name: 'Devices' },
         { name: 'Access Events' },
+        { name: 'Mobile Compatibility' },
         { name: 'Gate' },
         { name: 'Reports' }
     ],
@@ -44,7 +45,23 @@ const openApiSpec = {
                     password: { type: 'string', example: 'admin123' }
                 }
             },
-            UserCreateRequest: {
+            Account: {
+                type: 'object',
+                properties: {
+                    accountId: { type: 'integer', example: 1 },
+                    email: { type: 'string', example: 'manager@parksecure.local' },
+                    role: {
+                        type: 'string',
+                        enum: ['admin', 'hr', 'division_manager', 'operator', 'viewer'],
+                        example: 'division_manager'
+                    },
+                    divisionId: { type: 'integer', nullable: true, example: 1 },
+                    employeeId: { type: 'integer', nullable: true, example: 1 },
+                    isActive: { type: 'boolean', example: true },
+                    createdAt: { type: 'string', format: 'date-time' }
+                }
+            },
+            AccountCreateRequest: {
                 type: 'object',
                 required: ['email', 'password', 'role'],
                 properties: {
@@ -56,10 +73,11 @@ const openApiSpec = {
                         example: 'division_manager'
                     },
                     divisionId: { type: 'integer', nullable: true, example: 1 },
+                    employeeId: { type: 'integer', nullable: true, example: 1 },
                     isActive: { type: 'boolean', example: true }
                 }
             },
-            UserUpdateRequest: {
+            AccountUpdateRequest: {
                 type: 'object',
                 properties: {
                     email: { type: 'string', example: 'operator@parksecure.local' },
@@ -70,6 +88,7 @@ const openApiSpec = {
                         example: 'operator'
                     },
                     divisionId: { type: 'integer', nullable: true, example: 1 },
+                    employeeId: { type: 'integer', nullable: true, example: 1 },
                     isActive: { type: 'boolean', example: true }
                 }
             },
@@ -154,6 +173,26 @@ const openApiSpec = {
                     },
                     eventType: { type: 'string', enum: ['ENTRY', 'EXIT'], example: 'ENTRY' },
                     gateCode: { type: 'string', nullable: true, example: 'GATE-01' }
+                }
+            },
+            MobileLoginSecureRequest: {
+                type: 'object',
+                required: ['email', 'password', 'deviceIdentifier'],
+                properties: {
+                    email: { type: 'string', example: 'manager.demo@parksecure.local' },
+                    password: { type: 'string', example: 'admin123' },
+                    platform: { type: 'string', nullable: true, example: 'ios' },
+                    deviceIdentifier: { type: 'string', example: 'ios-hw-12345' }
+                }
+            },
+            MobileValidateAccessRequest: {
+                type: 'object',
+                required: ['accessSeed'],
+                properties: {
+                    accessSeed: {
+                        type: 'string',
+                        example: '4D7C4F6F1B2A4E6D8C9A0B1C2D3E4F506172839405A6B7C8D9E0F11223344556'
+                    }
                 }
             },
             GateAccessListItem: {
@@ -262,29 +301,30 @@ const openApiSpec = {
         '/users': {
             get: {
                 tags: ['Users'],
-                summary: 'List users',
+                summary: 'List accounts',
+                description: 'External endpoint kept as /api/users for frontend compatibility. Internally these records are stored in the accounts table.',
                 security: [{ bearerAuth: [] }],
                 responses: {
-                    200: { description: 'Users list' },
+                    200: { description: 'Accounts list' },
                     401: { $ref: '#/components/responses/Unauthorized' },
                     403: { $ref: '#/components/responses/Forbidden' }
                 }
             },
             post: {
                 tags: ['Users'],
-                summary: 'Create a user',
-                description: 'Admin can create any role. HR can create only division_manager, operator or viewer users.',
+                summary: 'Create an account',
+                description: 'Admin can create any role. HR can create only division_manager, operator or viewer accounts. employeeId is optional, but one employee can be linked to only one account.',
                 security: [{ bearerAuth: [] }],
                 requestBody: {
                     required: true,
                     content: {
                         'application/json': {
-                            schema: { $ref: '#/components/schemas/UserCreateRequest' }
+                            schema: { $ref: '#/components/schemas/AccountCreateRequest' }
                         }
                     }
                 },
                 responses: {
-                    201: { description: 'User created' },
+                    201: { description: 'Account created' },
                     401: { $ref: '#/components/responses/Unauthorized' },
                     403: { $ref: '#/components/responses/Forbidden' }
                 }
@@ -293,38 +333,38 @@ const openApiSpec = {
         '/users/{id}': {
             put: {
                 tags: ['Users'],
-                summary: 'Update a user',
-                description: 'Admin can update any user. HR can update only non-admin and non-hr users, and cannot assign admin or hr roles.',
+                summary: 'Update an account',
+                description: 'Admin can update any account. HR can update only non-admin and non-hr accounts, and cannot assign admin or hr roles.',
                 security: [{ bearerAuth: [] }],
                 parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
                 requestBody: {
                     required: true,
                     content: {
                         'application/json': {
-                            schema: { $ref: '#/components/schemas/UserUpdateRequest' }
+                            schema: { $ref: '#/components/schemas/AccountUpdateRequest' }
                         }
                     }
                 },
                 responses: {
-                    200: { description: 'User updated' },
+                    200: { description: 'Account updated' },
                     401: { $ref: '#/components/responses/Unauthorized' },
                     403: { $ref: '#/components/responses/Forbidden' },
-                    404: { description: 'User not found' }
+                    404: { description: 'Account not found' }
                 }
             }
         },
         '/admin/users/{id}': {
             delete: {
                 tags: ['Users'],
-                summary: 'Delete a user permanently',
-                description: 'Hard delete for maintenance. Admin only.',
+                summary: 'Delete an account permanently',
+                description: 'Hard delete for maintenance. Admin only. The currently authenticated account cannot delete itself.',
                 security: [{ bearerAuth: [] }],
                 parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
                 responses: {
-                    200: { description: 'User deleted' },
+                    200: { description: 'Account deleted' },
                     401: { $ref: '#/components/responses/Unauthorized' },
                     403: { $ref: '#/components/responses/Forbidden' },
-                    404: { description: 'User not found' }
+                    404: { description: 'Account not found' }
                 }
             }
         },
@@ -568,6 +608,47 @@ const openApiSpec = {
                     },
                     400: { description: 'Invalid request body' },
                     401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+        '/mobile/login-secure': {
+            post: {
+                tags: ['Mobile Compatibility'],
+                summary: 'Mobile demo login and smartphone session registration',
+                description: 'Compatibility endpoint for the mobile prototype. It authenticates an account linked to an employee, replaces the previous smartphone session for that employee/device and returns accessSeed.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/MobileLoginSecureRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'Mobile session created and accessSeed returned' },
+                    400: { description: 'Invalid request body' },
+                    401: { description: 'Invalid credentials' },
+                    403: { description: 'Inactive account or employee' }
+                }
+            }
+        },
+        '/validate-access': {
+            post: {
+                tags: ['Mobile Compatibility'],
+                summary: 'Validate mobile accessSeed with mobile-compatible response',
+                description: 'Compatibility endpoint for the mobile prototype. Internally uses the same seed validation logic as /api/access/validate-seed with ENTRY and GATE_MAIN.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/MobileValidateAccessRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'Access allowed' },
+                    400: { description: 'Missing accessSeed' },
+                    403: { description: 'Access denied' }
                 }
             }
         },

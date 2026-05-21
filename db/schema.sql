@@ -4,12 +4,13 @@ CREATE TABLE IF NOT EXISTS divisions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS users (
-    user_id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS accounts (
+    account_id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'hr', 'division_manager', 'operator', 'viewer')),
     division_id INTEGER REFERENCES divisions(division_id) ON DELETE SET NULL,
+    employee_id INTEGER,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -27,10 +28,29 @@ CREATE TABLE IF NOT EXISTS employees (
     access_start_time TIME,
     access_end_time TIME,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    granted_by_user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
+    granted_by_account_id INTEGER REFERENCES accounts(account_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+DO $$
+BEGIN
+    ALTER TABLE accounts
+    DROP CONSTRAINT IF EXISTS fk_accounts_employees;
+
+    ALTER TABLE accounts
+    ADD CONSTRAINT fk_accounts_employees
+    FOREIGN KEY (employee_id)
+    REFERENCES employees(employee_id)
+    ON DELETE SET NULL;
+
+    ALTER TABLE accounts
+    DROP CONSTRAINT IF EXISTS uq_account_employee;
+
+    ALTER TABLE accounts
+    ADD CONSTRAINT uq_account_employee
+    UNIQUE (employee_id);
+END $$;
 
 CREATE TABLE IF NOT EXISTS smartphones (
     smartphone_id SERIAL PRIMARY KEY,
@@ -55,6 +75,7 @@ CREATE TABLE IF NOT EXISTS access_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_employees_division_id ON employees(division_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_employee_id ON accounts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_access_events_employee_time ON access_events(employee_id, event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_access_events_time ON access_events(event_time DESC);
 
@@ -62,7 +83,7 @@ INSERT INTO divisions (name)
 VALUES ('General')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO users (email, password_hash, role, division_id, is_active)
+INSERT INTO accounts (email, password_hash, role, division_id, is_active)
 SELECT
     'admin@parksecure.local',
     '$2b$10$2rQU5Drt6QyImytbWglMQ.opIMPH36dK7bpRSO5g87dWzRHLtJB.m',
@@ -70,5 +91,5 @@ SELECT
     NULL,
     TRUE
 WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'admin@parksecure.local'
+    SELECT 1 FROM accounts WHERE email = 'admin@parksecure.local'
 );

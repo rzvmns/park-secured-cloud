@@ -21,7 +21,12 @@ const authenticate = (req, res, next) => {
     }
 
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        req.account = jwt.verify(token, process.env.JWT_SECRET);
+        if (!req.account.accountId && req.account.userId) {
+            req.account.accountId = req.account.userId;
+            delete req.account.userId;
+        }
+        req.user = req.account;
         return next();
     } catch (error) {
         return res.status(401).json({

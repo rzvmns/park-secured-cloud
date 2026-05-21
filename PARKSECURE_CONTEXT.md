@@ -835,7 +835,89 @@ Reguli:
 - pentru seed gasit, scrie eveniment in `access_events` cu `ALLOWED` sau `DENIED`
 - pentru seed necunoscut, intoarce `DENIED`, dar nu poate scrie rand in `access_events` in schema actuala pentru ca `employee_id` este obligatoriu si nu se cunoaste angajatul
 
+Comportament logare:
+
+- `accessSeed` necunoscut: raspuns `DENIED`, fara rand in `access_events`
+- `accessSeed` cunoscut, dar smartphone netrusted: raspuns `DENIED`, cu rand in `access_events`
+- `accessSeed` cunoscut, dar angajat inactiv: raspuns `DENIED`, cu rand in `access_events`
+- `accessSeed` cunoscut, dar in afara intervalului permis: raspuns `DENIED`, cu rand in `access_events`
+- `accessSeed` valid: raspuns `ALLOWED`, cu rand in `access_events`
+
 Observatie:
 
 - Pentru demo se compara seed-ul plain text.
 - Pentru productie ar trebui stocat hash-ul seed-ului, nu seed-ul in clar.
+
+## Update 2026-05-21 - Consistenta Smartphone Access Events
+
+`POST /api/access-events` verifica acum daca `smartphoneId` apartine aceluiasi `employeeId`.
+
+Regula:
+
+- daca `smartphoneId` este trimis si apartine angajatului: evenimentul este acceptat
+- daca `smartphoneId` este trimis, dar apartine altui angajat sau nu exista: raspuns `400 Bad Request`
+- daca `smartphoneId` lipseste: evenimentul poate fi creat doar pe baza `employeeId`
+
+Motiv:
+
+- previne loguri incoerente de forma `employeeId=1` cu `smartphoneId` al altui angajat
+- pastreaza rapoartele si auditul coerente
+
+README contine acum sectiunea `Demo flow complet`, cu pasii:
+
+- health
+- login
+- create division
+- create employee
+- register smartphone
+- validate seed
+- list access events
+- reports
+
+## Update 2026-05-21 - HR Poate Inregistra Smartphone
+
+Pentru ca fluxul demo sa fie complet si pentru HR:
+
+```text
+HR creeaza angajat -> HR inregistreaza smartphone -> se genereaza accessSeed
+```
+
+`POST /api/devices/register` permite acum:
+
+- `admin`
+- `hr`
+- `division_manager`
+- `operator`
+
+Motiv:
+
+- HR poate gestiona partea de personal si trebuie sa poata asocia angajatul cu telefonul pentru demo.
+
+## Update 2026-05-21 - Accounts In Loc De Users
+
+Tabela interna `users` a fost redenumita conceptual si in schema finala la `accounts`.
+
+Regula proiectului:
+
+- `accounts` = conturi de autentificare web/cloud, roluri si permisiuni
+- `employees` = angajati fizici care intra/ies prin poarta
+- un employee poate avea maximum un account
+- un account poate avea `employee_id = NULL`
+- admin/HR pot exista fara employee asociat
+
+API-ul extern ramane compatibil:
+
+```text
+GET    /api/users
+POST   /api/users
+PUT    /api/users/:id
+DELETE /api/admin/users/:id
+```
+
+Intern, aceste endpoint-uri citesc/scriu in tabela `accounts`, cu `account_id`.
+
+Coloana din `employees` pentru audit a fost redenumita:
+
+```text
+granted_by_user_id -> granted_by_account_id
+```

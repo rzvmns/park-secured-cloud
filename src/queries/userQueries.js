@@ -1,13 +1,13 @@
 const userQueries = {
     getByEmail: `
-    SELECT userId, email, passwordHash, role, isActive, createdAt
-    FROM Users
+    SELECT account_id, email, password_hash, role, is_active, created_at
+    FROM accounts
     WHERE email = $1;
   `,
     create: `
-    INSERT INTO Users (email, passwordHash, role, isActive)
+    INSERT INTO accounts (email, password_hash, role, is_active)
     VALUES ($1, $2, $3, $4)
-    RETURNING userId;
+    RETURNING account_id;
   `
 };
 

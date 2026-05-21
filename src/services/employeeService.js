@@ -15,7 +15,7 @@ const toEmployeeResponse = (employee) => ({
     accessStartTime: employee.access_start_time,
     accessEndTime: employee.access_end_time,
     isActive: employee.is_active,
-    grantedByUserId: employee.granted_by_user_id,
+    grantedByAccountId: employee.granted_by_account_id,
     createdAt: employee.created_at,
     updatedAt: employee.updated_at
 });
@@ -74,7 +74,7 @@ const createEmployee = async (payload, user) => {
         `INSERT INTO employees (
             first_name, last_name, cnp, photo_url, badge_code, division_id,
             bluetooth_code, car_number, access_start_time, access_end_time,
-            is_active, granted_by_user_id
+            is_active, granted_by_account_id
          )
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, true), $12)
          RETURNING *`,
@@ -90,7 +90,7 @@ const createEmployee = async (payload, user) => {
             payload.accessStartTime || null,
             payload.accessEndTime || null,
             payload.isActive,
-            user.userId
+            user.accountId
         ]
     );
 

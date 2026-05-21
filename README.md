@@ -16,6 +16,8 @@ If the database already exists from an older version, apply migrations in order:
 ```powershell
 psql $env:DATABASE_URL -f db/migrations/001_add_smartphone_access_seed.sql
 psql $env:DATABASE_URL -f db/migrations/002_add_hr_role.sql
+psql $env:DATABASE_URL -f db/migrations/003_add_user_employee_reference.sql
+psql $env:DATABASE_URL -f db/migrations/004_rename_users_to_accounts.sql
 ```
 
 Initial admin account:
@@ -37,7 +39,7 @@ password: admin123
 For an existing database, create or repair the demo HR account with:
 
 ```sql
-INSERT INTO users (email, password_hash, role, division_id, is_active)
+INSERT INTO accounts (email, password_hash, role, division_id, is_active)
 VALUES (
   'hr@parksecure.local',
   '$2b$10$2rQU5Drt6QyImytbWglMQ.opIMPH36dK7bpRSO5g87dWzRHLtJB.m',
@@ -54,6 +56,8 @@ ON CONFLICT (email) DO UPDATE SET
 The demo password hash above is for `admin123`; change this password in a real deployment.
 
 ## Main API endpoints
+
+The public API keeps `/api/users` for frontend compatibility, but internally those records are stored in the `accounts` table.
 
 ```text
 POST /api/auth/login
@@ -73,6 +77,8 @@ GET  /api/devices/:employeeId
 POST /api/access-events
 GET  /api/access-events
 POST /api/access/validate-seed
+POST /api/mobile/login-secure
+POST /api/validate-access
 GET  /api/gate/access-list
 GET  /api/reports/individual/:employeeId
 GET  /api/reports/division/:divisionId
@@ -101,18 +107,18 @@ operator
 viewer
 ```
 
-`admin` can manage the whole system, including divisions, users, employees, permanent deletes and global reports.
+`admin` can manage the whole system, including divisions, accounts, employees, permanent deletes and global reports.
 
-`hr` can manage personnel and ordinary web users:
+`hr` can manage personnel and ordinary web/cloud accounts:
 
-- create users with role `division_manager`, `operator` or `viewer`
-- update users that are not `admin` or `hr`
+- create accounts with role `division_manager`, `operator` or `viewer`
+- update accounts that are not `admin` or `hr`
 - add and update employees
 - associate employees with divisions
 - activate or deactivate employee access
 - view personnel reports
 
-`hr` cannot create or modify `admin`/`hr` users and cannot permanently delete data.
+`hr` cannot create or modify `admin`/`hr` accounts and cannot permanently delete data.
 
 `division_manager` can view and update employees only inside their own division.
 
@@ -120,12 +126,139 @@ viewer
 
 `viewer` has read-only access.
 
+## Accounts and employees
+
+`accounts` are authentication records for the web/cloud app: email, password hash, role, permissions and login state.
+
+`employees` are physical company employees who enter or exit through the gate.
+
+`accounts.employee_id` is an optional reference to `employees.employee_id`.
+Use it when a web/cloud account also belongs to a real employee record, for example a viewer account created for an employee.
+
+Rules:
+
+- one employee can have maximum one account
+- multiple accounts can have `employee_id = NULL`
+- technical admin and HR accounts can exist without an associated employee
+- if the linked employee is deleted, `accounts.employee_id` becomes `NULL`, but the account remains in the system
+
+Final relevant schema:
+
+```sql
+accounts(
+  account_id,
+  email,
+  password_hash,
+  role,
+  division_id,
+  employee_id,
+  is_active,
+  created_at
+)
+
+employees(
+  employee_id,
+  first_name,
+  last_name,
+  cnp,
+  photo_url,
+  badge_code,
+  division_id,
+  bluetooth_code,
+  car_number,
+  access_start_time,
+  access_end_time,
+  is_active,
+  granted_by_account_id,
+  created_at,
+  updated_at
+)
+```
+
+Example account body sent to the compatibility endpoint `POST /api/users`:
+
+```json
+{
+  "email": "sorin@parksecure.local",
+  "password": "sorin123",
+  "role": "viewer",
+  "divisionId": 1,
+  "employeeId": 1,
+  "isActive": true
+}
+```
+
 ## Demo requests on Render
 
 Base URL:
 
 ```text
 <RENDER_URL>
+```
+
+## Demo seed data
+
+For testing, the project has controlled seed and cleanup SQL files:
+
+```text
+db/seeds/demo_data.sql
+db/seeds/demo_cleanup.sql
+```
+
+`demo_data.sql` adds demo rows in:
+
+- `divisions`
+- `accounts`
+- `employees`
+- `smartphones`
+- `access_events`
+
+The seed is idempotent: running it again updates the same demo accounts/employees/devices and recreates only the demo access events.
+
+Demo account passwords use the same demo hash as `admin123`.
+
+To remove only the seeded demo data, run:
+
+```powershell
+node scripts/run-migration.js db/seeds/demo_cleanup.sql
+```
+
+## Mobile compatibility endpoints
+
+The mobile prototype from `message(3).txt` can use these compatibility endpoints:
+
+```text
+POST /api/mobile/login-secure
+POST /api/validate-access
+```
+
+`POST /api/mobile/login-secure` authenticates an `accounts` record linked to an `employees` record, creates/replaces the smartphone session and returns `accessSeed`.
+
+Example:
+
+```http
+POST <RENDER_URL>/api/mobile/login-secure
+Content-Type: application/json
+
+{
+  "email": "manager.demo@parksecure.local",
+  "password": "admin123",
+  "platform": "ios",
+  "deviceIdentifier": "ios-hw-demo-12345"
+}
+```
+
+`POST /api/validate-access` receives only `accessSeed` and returns the mobile-compatible `authorized` response.
+
+Example:
+
+```http
+POST <RENDER_URL>/api/validate-access
+Content-Type: application/json
+
+{
+  "accessSeed": "<ACCESS_SEED>"
+}
 ```
 
 First, verify that the backend and PostgreSQL connection are working:
@@ -162,7 +295,7 @@ Content-Type: application/json
 }
 ```
 
-HR can use the returned token to create/update employees and manage ordinary users (`division_manager`, `operator`, `viewer`), but cannot create admin/hr users or permanently delete data.
+HR can use the returned token to create/update employees and manage ordinary accounts (`division_manager`, `operator`, `viewer`), but cannot create admin/hr accounts or permanently delete data.
 
 Use the token on protected endpoints:
 
@@ -268,6 +401,10 @@ The seed is returned only when the device is registered or re-registered.
 
 Validate an `accessSeed` sent by ESP32/gate for the demo access flow:
 
+`POST /api/access/validate-seed` is the online validation variant used by the prototype/demo.
+In this flow, the ESP32 receives the seed from the mobile phone over Bluetooth, asks the Cloud API if the seed is valid, receives `ALLOWED` or `DENIED`, and only then commands the gate.
+The cloud is therefore used as the demo validation authority for this endpoint.
+
 ```http
 POST <RENDER_URL>/api/access/validate-seed
 X-Gate-Api-Key: <GATE_API_KEY>
@@ -309,6 +446,14 @@ For demo, `accessSeed` is checked directly in PostgreSQL. For production, store 
 When a seed matches a known smartphone, the backend writes an `access_events` row with `ALLOWED` or `DENIED`.
 An unknown seed returns `DENIED` without an event row because there is no known `employee_id` for the current schema.
 
+Logging behavior for seed validation:
+
+- unknown `accessSeed`: returns `DENIED`, no `access_events` row is created
+- known `accessSeed` but untrusted smartphone: returns `DENIED` and creates an `access_events` row
+- known `accessSeed` but inactive employee: returns `DENIED` and creates an `access_events` row
+- known `accessSeed` but outside the allowed interval: returns `DENIED` and creates an `access_events` row
+- valid `accessSeed`: returns `ALLOWED` and creates an `access_events` row
+
 Create an access event after the ESP32/gate has made the local access decision.
 Replace the `employeeId` and `smartphoneId` values with the IDs returned by the previous requests:
 
@@ -344,6 +489,129 @@ X-Gate-Api-Key: <GATE_API_KEY>
 
 This endpoint returns active employees, access intervals, Bluetooth codes, trusted smartphone metadata and `accessSeed`.
 It is intended only for the gate/ESP32 sync flow, not for the web UI.
+
+## Demo flow complet
+
+Short flow:
+
+```text
+Login admin
+-> creare divizie
+-> creare angajat
+-> register smartphone
+-> se genereaza accessSeed
+-> ESP32/mobile trimite accessSeed la /api/access/validate-seed
+-> cloud returneaza ALLOWED/DENIED
+-> se salveaza access_event
+-> web afiseaza loguri si rapoarte
+```
+
+1. Check backend health:
+
+```http
+GET <RENDER_URL>/api/health
+```
+
+2. Log in as admin or HR and copy the JWT:
+
+```http
+POST <RENDER_URL>/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@parksecure.local",
+  "password": "admin123"
+}
+```
+
+3. Create or choose a division:
+
+```http
+POST <RENDER_URL>/api/divisions
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "name": "Demo Security"
+}
+```
+
+4. Create an employee:
+
+```http
+POST <RENDER_URL>/api/employees
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "firstName": "Ana",
+  "lastName": "Popescu",
+  "cnp": "2990101123456",
+  "photoUrl": "https://example.com/ana-popescu.jpg",
+  "badgeCode": "BADGE-DEMO-010",
+  "divisionId": 1,
+  "bluetoothCode": "BT-ANA-010",
+  "carNumber": "TM01ABC",
+  "accessStartTime": "08:00",
+  "accessEndTime": "18:00",
+  "isActive": true
+}
+```
+
+5. Register the employee smartphone. Save the returned `accessSeed`.
+
+```http
+POST <RENDER_URL>/api/devices/register
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "employeeId": 1,
+  "platform": "android",
+  "deviceIdentifier": "android-ana-demo-010",
+  "isTrusted": true
+}
+```
+
+6. ESP32/gate validates the seed received from mobile:
+
+```http
+POST <RENDER_URL>/api/access/validate-seed
+X-Gate-Api-Key: <GATE_API_KEY>
+Content-Type: application/json
+
+{
+  "accessSeed": "<ACCESS_SEED>",
+  "eventType": "ENTRY",
+  "gateCode": "GATE-01"
+}
+```
+
+7. Check the access log:
+
+```http
+GET <RENDER_URL>/api/access-events
+Authorization: Bearer <JWT_TOKEN>
+```
+
+8. Check reports:
+
+```http
+GET <RENDER_URL>/api/reports/individual/<employeeId>
+Authorization: Bearer <JWT_TOKEN>
+```
+
+```http
+GET <RENDER_URL>/api/reports/division/<divisionId>
+Authorization: Bearer <JWT_TOKEN>
+```
+
+```http
+GET <RENDER_URL>/api/reports/global
+Authorization: Bearer <JWT_TOKEN>
+```
+
+In the demo flow, the cloud validates `accessSeed` directly. In a production system, store only a hash of the seed and compare hashes.
 
 ## Run with Docker
 

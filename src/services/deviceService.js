@@ -15,9 +15,10 @@ const toDeviceResponse = (device, includeAccessSeed = false) => ({
 
 const canAccessEmployee = async (employeeId, user) => {
     const params = [employeeId];
-    const divisionClause = user.role === 'admin' ? '' : 'AND division_id = $2';
+    const hasGlobalAccess = user.role === 'admin' || user.role === 'hr';
+    const divisionClause = hasGlobalAccess ? '' : 'AND division_id = $2';
 
-    if (user.role !== 'admin') {
+    if (!hasGlobalAccess) {
         params.push(user.divisionId);
     }
 

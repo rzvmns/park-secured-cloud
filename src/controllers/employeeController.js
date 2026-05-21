@@ -1,5 +1,6 @@
 const employeeService = require('../services/employeeService');
 const { sendControllerError } = require('../utils/apiErrors');
+const { ROLES } = require('../utils/roles');
 
 const getEmployees = async (req, res) => {
     try {
@@ -45,7 +46,7 @@ const getEmployeeById = async (req, res) => {
 const createEmployee = async (req, res) => {
     const { firstName, lastName, cnp, divisionId } = req.body;
 
-    if (!firstName || !lastName || !cnp || (!divisionId && req.user.role === 'admin')) {
+    if (!firstName || !lastName || !cnp || (!divisionId && (req.user.role === ROLES.ADMIN || req.user.role === ROLES.HR))) {
         return res.status(400).json({
             success: false,
             message: 'firstName, lastName, cnp and divisionId are required'

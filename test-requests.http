@@ -33,6 +33,34 @@ Content-Type: application/json
 GET {{baseUrl}}/api/divisions
 Authorization: Bearer {{token}}
 
+### Create ordinary user as admin or HR
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "email": "operator.demo@parksecure.local",
+  "password": "operator123",
+  "role": "operator",
+  "divisionId": {{divisionId}},
+  "isActive": true
+}
+
+### Update ordinary user as admin or HR
+PUT {{baseUrl}}/api/users/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isActive": true,
+  "role": "viewer",
+  "divisionId": {{divisionId}}
+}
+
+### Delete user permanently as admin only
+DELETE {{baseUrl}}/api/admin/users/2
+Authorization: Bearer {{token}}
+
 ### Create employee
 POST {{baseUrl}}/api/employees
 Authorization: Bearer {{token}}
@@ -105,6 +133,10 @@ Content-Type: application/json
 ### List access events
 GET {{baseUrl}}/api/access-events
 Authorization: Bearer {{token}}
+
+### Gate access list for ESP32 local validation
+GET {{baseUrl}}/api/gate/access-list
+X-Gate-Api-Key: {{gateApiKey}}
 
 ### Individual report
 GET {{baseUrl}}/api/reports/individual/{{employeeId}}

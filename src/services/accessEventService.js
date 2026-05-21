@@ -14,7 +14,7 @@ const toEventResponse = (event) => ({
 });
 
 const getAccessScope = (user, startIndex = 1) => {
-    if (!user || user.role === ROLES.ADMIN) {
+    if (!user || user.role === ROLES.ADMIN || user.role === ROLES.HR) {
         return {
             clause: '',
             params: []
@@ -78,7 +78,7 @@ const getAccessEvents = async (filters, user) => {
         conditions.push(`ae.event_time <= $${params.length}`);
     }
 
-    if (user && user.role !== ROLES.ADMIN) {
+    if (user && user.role !== ROLES.ADMIN && user.role !== ROLES.HR) {
         params.push(user.divisionId);
         conditions.push(`e.division_id = $${params.length}`);
     }

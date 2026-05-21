@@ -19,6 +19,7 @@ const openApiSpec = {
         { name: 'Employees' },
         { name: 'Devices' },
         { name: 'Access Events' },
+        { name: 'Gate' },
         { name: 'Reports' }
     ],
     components: {
@@ -51,8 +52,22 @@ const openApiSpec = {
                     password: { type: 'string', example: 'manager123' },
                     role: {
                         type: 'string',
-                        enum: ['admin', 'division_manager', 'operator', 'viewer'],
+                        enum: ['admin', 'hr', 'division_manager', 'operator', 'viewer'],
                         example: 'division_manager'
+                    },
+                    divisionId: { type: 'integer', nullable: true, example: 1 },
+                    isActive: { type: 'boolean', example: true }
+                }
+            },
+            UserUpdateRequest: {
+                type: 'object',
+                properties: {
+                    email: { type: 'string', example: 'operator@parksecure.local' },
+                    password: { type: 'string', example: 'new-password' },
+                    role: {
+                        type: 'string',
+                        enum: ['admin', 'hr', 'division_manager', 'operator', 'viewer'],
+                        example: 'operator'
                     },
                     divisionId: { type: 'integer', nullable: true, example: 1 },
                     isActive: { type: 'boolean', example: true }
@@ -127,6 +142,36 @@ const openApiSpec = {
                     gateCode: { type: 'string', nullable: true, example: 'GATE-1' },
                     source: { type: 'string', example: 'esp32' },
                     notes: { type: 'string', nullable: true, example: 'Access granted by Bluetooth validation' }
+                }
+            },
+            GateAccessListItem: {
+                type: 'object',
+                properties: {
+                    employeeId: { type: 'integer', example: 1 },
+                    firstName: { type: 'string', example: 'Ion' },
+                    lastName: { type: 'string', example: 'Popescu' },
+                    divisionId: { type: 'integer', example: 1 },
+                    divisionName: { type: 'string', example: 'Central Division' },
+                    bluetoothCode: { type: 'string', nullable: true, example: 'BT-ION-001' },
+                    carNumber: { type: 'string', nullable: true, example: 'TM01ABC' },
+                    accessStartTime: { type: 'string', nullable: true, example: '08:00:00' },
+                    accessEndTime: { type: 'string', nullable: true, example: '18:00:00' },
+                    smartphone: {
+                        type: 'object',
+                        nullable: true,
+                        properties: {
+                            smartphoneId: { type: 'integer', example: 1 },
+                            platform: { type: 'string', example: 'android' },
+                            deviceIdentifier: { type: 'string', example: 'android-device-unique-id' },
+                            accessSeed: {
+                                type: 'string',
+                                description: 'Secret credential for local gate/mobile validation. Exposed only to the gate sync endpoint.',
+                                example: '4D7C4F6F1B2A4E6D8C9A0B1C2D3E4F506172839405A6B7C8D9E0F11223344556'
+                            },
+                            isTrusted: { type: 'boolean', example: true },
+                            registeredAt: { type: 'string', format: 'date-time' }
+                        }
+                    }
                 }
             },
             ApiResponse: {
@@ -216,6 +261,7 @@ const openApiSpec = {
             post: {
                 tags: ['Users'],
                 summary: 'Create a user',
+                description: 'Admin can create any role. HR can create only division_manager, operator or viewer users.',
                 security: [{ bearerAuth: [] }],
                 requestBody: {
                     required: true,
@@ -229,6 +275,44 @@ const openApiSpec = {
                     201: { description: 'User created' },
                     401: { $ref: '#/components/responses/Unauthorized' },
                     403: { $ref: '#/components/responses/Forbidden' }
+                }
+            }
+        },
+        '/users/{id}': {
+            put: {
+                tags: ['Users'],
+                summary: 'Update a user',
+                description: 'Admin can update any user. HR can update only non-admin and non-hr users, and cannot assign admin or hr roles.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/UserUpdateRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'User updated' },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    403: { $ref: '#/components/responses/Forbidden' },
+                    404: { description: 'User not found' }
+                }
+            }
+        },
+        '/admin/users/{id}': {
+            delete: {
+                tags: ['Users'],
+                summary: 'Delete a user permanently',
+                description: 'Hard delete for maintenance. Admin only.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+                responses: {
+                    200: { description: 'User deleted' },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    403: { $ref: '#/components/responses/Forbidden' },
+                    404: { description: 'User not found' }
                 }
             }
         },
@@ -416,6 +500,40 @@ const openApiSpec = {
                 },
                 responses: {
                     201: { description: 'Access event created' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+        '/gate/access-list': {
+            get: {
+                tags: ['Gate'],
+                summary: 'Synchronize active access credentials for ESP32/gate local validation',
+                description: 'Returns active employees and trusted smartphone credentials needed by the gate for local validation. This endpoint requires X-Gate-Api-Key and is not meant for the web UI.',
+                security: [{ gateApiKey: [] }],
+                responses: {
+                    200: {
+                        description: 'Gate access list',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        success: { type: 'boolean', example: true },
+                                        data: {
+                                            type: 'object',
+                                            properties: {
+                                                generatedAt: { type: 'string', format: 'date-time' },
+                                                items: {
+                                                    type: 'array',
+                                                    items: { $ref: '#/components/schemas/GateAccessListItem' }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     401: { $ref: '#/components/responses/Unauthorized' }
                 }
             }

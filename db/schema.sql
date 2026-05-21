@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'division_manager', 'operator', 'viewer')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'hr', 'division_manager', 'operator', 'viewer')),
     division_id INTEGER REFERENCES divisions(division_id) ON DELETE SET NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

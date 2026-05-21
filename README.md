@@ -15,6 +15,7 @@ If the database already exists from an older version, apply migrations in order:
 
 ```powershell
 psql $env:DATABASE_URL -f db/migrations/001_add_smartphone_access_seed.sql
+psql $env:DATABASE_URL -f db/migrations/002_add_hr_role.sql
 ```
 
 Initial admin account:
@@ -32,6 +33,8 @@ Change this password after first login in a real deployment.
 POST /api/auth/login
 GET  /api/users
 POST /api/users
+PUT  /api/users/:id
+DELETE /api/admin/users/:id
 GET  /api/divisions
 POST /api/divisions
 GET  /api/employees
@@ -43,6 +46,7 @@ POST /api/devices/register
 GET  /api/devices/:employeeId
 POST /api/access-events
 GET  /api/access-events
+GET  /api/gate/access-list
 GET  /api/reports/individual/:employeeId
 GET  /api/reports/division/:divisionId
 GET  /api/reports/global
@@ -59,6 +63,35 @@ The gate/ESP32 can send access events using:
 ```text
 X-Gate-Api-Key: <GATE_API_KEY>
 ```
+
+## Roles and permissions
+
+```text
+admin
+hr
+division_manager
+operator
+viewer
+```
+
+`admin` can manage the whole system, including divisions, users, employees, permanent deletes and global reports.
+
+`hr` can manage personnel and ordinary web users:
+
+- create users with role `division_manager`, `operator` or `viewer`
+- update users that are not `admin` or `hr`
+- add and update employees
+- associate employees with divisions
+- activate or deactivate employee access
+- view personnel reports
+
+`hr` cannot create or modify `admin`/`hr` users and cannot permanently delete data.
+
+`division_manager` can view and update employees only inside their own division.
+
+`operator` can view employees and logs and can create access events where allowed.
+
+`viewer` has read-only access.
 
 ## Demo requests on Render
 
@@ -217,6 +250,16 @@ List access events:
 GET <RENDER_URL>/api/access-events
 Authorization: Bearer <TOKEN>
 ```
+
+Synchronize active access data for ESP32/gate local validation:
+
+```http
+GET <RENDER_URL>/api/gate/access-list
+X-Gate-Api-Key: <GATE_API_KEY>
+```
+
+This endpoint returns active employees, access intervals, Bluetooth codes, trusted smartphone metadata and `accessSeed`.
+It is intended only for the gate/ESP32 sync flow, not for the web UI.
 
 ## Run with Docker
 

@@ -3,7 +3,7 @@ const { ROLES } = require('../utils/roles');
 const accessEventService = require('./accessEventService');
 
 const buildScopeCondition = (user, params) => {
-    if (user.role === ROLES.ADMIN) {
+    if (user.role === ROLES.ADMIN || user.role === ROLES.HR) {
         return '';
     }
 
@@ -48,11 +48,11 @@ const getDivisionReport = async (divisionId, user) => {
 
 const getGlobalReport = async (user) => {
     const params = [];
-    const whereClause = user.role === ROLES.ADMIN
+    const whereClause = user.role === ROLES.ADMIN || user.role === ROLES.HR
         ? ''
         : `WHERE e.division_id = $1`;
 
-    if (user.role !== ROLES.ADMIN) {
+    if (user.role !== ROLES.ADMIN && user.role !== ROLES.HR) {
         params.push(user.divisionId);
     }
 

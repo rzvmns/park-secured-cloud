@@ -8,6 +8,7 @@ const divisionRoutes = require('./routes/divisionRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const accessEventRoutes = require('./routes/accessEventRoutes');
+const gateRoutes = require('./routes/gateRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const testRoutes = require('./routes/testRoutes');
 const openApiSpec = require('./docs/openapi');
@@ -39,6 +40,7 @@ app.use('/api', divisionRoutes);
 app.use('/api', employeeRoutes);
 app.use('/api', deviceRoutes);
 app.use('/api', accessEventRoutes);
+app.use('/api', gateRoutes);
 app.use('/api', reportRoutes);
 app.use('/api', testRoutes);
 

@@ -4,6 +4,7 @@ const divisionController = require('./divisionController');
 const employeeController = require('./employeeController');
 const deviceController = require('./deviceController');
 const accessEventController = require('./accessEventController');
+const gateController = require('./gateController');
 const reportController = require('./reportController');
 
 module.exports = {
@@ -13,5 +14,6 @@ module.exports = {
     employeeController,
     deviceController,
     accessEventController,
+    gateController,
     reportController
 };

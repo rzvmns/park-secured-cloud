@@ -701,6 +701,38 @@ Schimbari facute:
 - A fost adaugat `test-requests.http` cu payload-uri camelCase.
 - `src/queries` a fost marcat ca legacy prin `src/queries/README.md`.
 
+## Update 2026-05-21 - Sincronizare ESP32/Gate
+
+A fost adaugat endpoint dedicat pentru sincronizarea datelor necesare validarii locale pe ESP32/poarta:
+
+```text
+GET /api/gate/access-list
+```
+
+Autentificare:
+
+```text
+X-Gate-Api-Key: <GATE_API_KEY>
+```
+
+Endpoint-ul returneaza:
+
+- angajati activi
+- divizie
+- cod Bluetooth
+- numar masina
+- interval orar simplu (`accessStartTime`, `accessEndTime`)
+- smartphone trusted
+- `accessSeed` pentru validarea locala
+
+Acest endpoint este doar pentru ESP32/gate si nu pentru UI-ul web. Raspunsurile web normale, inclusiv `GET /api/devices/:employeeId`, nu expun `accessSeed`.
+
+Motiv:
+
+- PDF-ul cere comunicare Cloud - Smartphone - ESP32 si validare locala.
+- Daca ESP32 valideaza local, are nevoie de o lista sincronizata de credentiale/date active.
+- Cloud-ul ramane sursa de configurare si audit, dar nu decide direct deschiderea portii.
+
 Verificari rulate dupa reparatii:
 
 ```powershell
@@ -728,3 +760,44 @@ De facut inainte de deploy/push:
 - Aplicata migrarea `db/migrations/001_add_smartphone_access_seed.sql` in baza Render existenta.
 - Setat manual `GATE_API_KEY` in Render.
 - Commit si push pentru modificarile locale.
+
+## Update 2026-05-21 - Rol HR
+
+A fost adaugat rolul:
+
+```text
+hr
+```
+
+Roluri curente:
+
+- `admin`
+- `hr`
+- `division_manager`
+- `operator`
+- `viewer`
+
+Reguli implementate:
+
+- `admin` poate crea orice rol.
+- `hr` poate crea doar useri cu rol `division_manager`, `operator`, `viewer`.
+- `hr` nu poate crea sau modifica useri `admin` sau `hr`.
+- `hr` vede lista de useri fara `admin` si fara `hr`.
+- `PUT /api/users/:id` permite update pentru `admin` si `hr`, cu restrictiile de mai sus.
+- `DELETE /api/admin/users/:id` este doar pentru `admin`.
+- `POST /api/employees` este permis pentru `admin` si `hr`.
+- `PUT /api/employees/:id` si `PATCH /api/employees/:id/toggle-access` sunt permise pentru `admin`, `hr`, `division_manager`.
+- `division_manager` ramane limitat la propria divizie.
+- `hr` are acces global la employees/access events/reports, dar fara drepturi distructive de admin.
+
+Schema `users.role` accepta acum:
+
+```text
+admin, hr, division_manager, operator, viewer
+```
+
+Migratie noua pentru baze existente:
+
+```powershell
+psql $env:DATABASE_URL -f db/migrations/002_add_hr_role.sql
+```

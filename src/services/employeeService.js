@@ -66,7 +66,9 @@ const getEmployeeById = async (employeeId, user) => {
 };
 
 const createEmployee = async (payload, user) => {
-    const divisionId = user.role === ROLES.ADMIN ? payload.divisionId : user.divisionId;
+    const divisionId = user.role === ROLES.ADMIN || user.role === ROLES.HR
+        ? payload.divisionId
+        : user.divisionId;
 
     const result = await query(
         `INSERT INTO employees (
@@ -102,7 +104,7 @@ const updateEmployee = async (employeeId, payload, user) => {
         return null;
     }
 
-    const divisionId = user.role === ROLES.ADMIN
+    const divisionId = user.role === ROLES.ADMIN || user.role === ROLES.HR
         ? (payload.divisionId || existingEmployee.divisionId)
         : existingEmployee.divisionId;
 

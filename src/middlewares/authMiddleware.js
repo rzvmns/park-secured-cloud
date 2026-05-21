@@ -44,6 +44,8 @@ const authorize = (...allowedRoles) => {
     };
 };
 
+const requireRole = authorize;
+
 const authenticateGateOrUser = (req, res, next) => {
     const gateApiKey = req.headers['x-gate-api-key'];
 
@@ -55,8 +57,24 @@ const authenticateGateOrUser = (req, res, next) => {
     return authenticate(req, res, next);
 };
 
+const authenticateGate = (req, res, next) => {
+    const gateApiKey = req.headers['x-gate-api-key'];
+
+    if (process.env.GATE_API_KEY && gateApiKey === process.env.GATE_API_KEY) {
+        req.gate = true;
+        return next();
+    }
+
+    return res.status(401).json({
+        success: false,
+        message: 'Valid gate API key is required'
+    });
+};
+
 module.exports = {
     authenticate,
     authorize,
-    authenticateGateOrUser
+    requireRole,
+    authenticateGateOrUser,
+    authenticateGate
 };

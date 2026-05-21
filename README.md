@@ -27,6 +27,32 @@ password: admin123
 
 Change this password after first login in a real deployment.
 
+Optional demo HR account:
+
+```text
+email: hr@parksecure.local
+password: admin123
+```
+
+For an existing database, create or repair the demo HR account with:
+
+```sql
+INSERT INTO users (email, password_hash, role, division_id, is_active)
+VALUES (
+  'hr@parksecure.local',
+  '$2b$10$2rQU5Drt6QyImytbWglMQ.opIMPH36dK7bpRSO5g87dWzRHLtJB.m',
+  'hr',
+  NULL,
+  TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+  role = 'hr',
+  division_id = NULL,
+  is_active = TRUE;
+```
+
+The demo password hash above is for `admin123`; change this password in a real deployment.
+
 ## Main API endpoints
 
 ```text
@@ -122,6 +148,20 @@ Content-Type: application/json
   "password": "admin123"
 }
 ```
+
+Or log in with the demo HR account:
+
+```http
+POST <RENDER_URL>/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "hr@parksecure.local",
+  "password": "admin123"
+}
+```
+
+HR can use the returned token to create/update employees and manage ordinary users (`division_manager`, `operator`, `viewer`), but cannot create admin/hr users or permanently delete data.
 
 Use the token on protected endpoints:
 

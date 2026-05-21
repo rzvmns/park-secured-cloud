@@ -177,8 +177,51 @@ Content-Type: application/json
   "gateCode": "GATE-01"
 }
 
+### Mobile login secure - creates a mobile session and returns accessSeed
+POST {{baseUrl}}/api/mobile/login-secure
+Content-Type: application/json
+
+{
+  "email": "viewer.demo@parksecure.local",
+  "password": "admin123",
+  "platform": "ios",
+  "deviceIdentifier": "ios-hw-demo-001"
+}
+
+### Mobile profile by accessSeed
+POST {{baseUrl}}/api/mobile/me
+Content-Type: application/json
+
+{
+  "accessSeed": "{{accessSeed}}"
+}
+
+### Mobile current month report by accessSeed
+POST {{baseUrl}}/api/mobile/monthly-report
+Content-Type: application/json
+
+{
+  "accessSeed": "{{accessSeed}}"
+}
+
+### Mobile validate access by accessSeed
+POST {{baseUrl}}/api/validate-access
+Content-Type: application/json
+
+{
+  "accessSeed": "{{accessSeed}}"
+}
+
 ### List access events
 GET {{baseUrl}}/api/access-events
+Authorization: Bearer {{token}}
+
+### Export access events CSV
+GET {{baseUrl}}/api/access-events/export.csv
+Authorization: Bearer {{token}}
+
+### Gate status for web demo
+GET {{baseUrl}}/api/gate/status
 Authorization: Bearer {{token}}
 
 ### Gate access list for ESP32 local validation

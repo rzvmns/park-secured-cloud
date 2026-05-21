@@ -57,7 +57,67 @@ const validateAccess = async (req, res) => {
     }
 };
 
+const getMe = async (req, res) => {
+    const { accessSeed } = req.body;
+
+    if (!accessSeed) {
+        return res.status(400).json({
+            success: false,
+            message: 'accessSeed is required'
+        });
+    }
+
+    try {
+        const data = await mobileService.getMe({ accessSeed });
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mobile session not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        return sendControllerError(res, error, 'Could not fetch mobile profile');
+    }
+};
+
+const getMonthlyReport = async (req, res) => {
+    const { accessSeed } = req.body;
+
+    if (!accessSeed) {
+        return res.status(400).json({
+            success: false,
+            message: 'accessSeed is required'
+        });
+    }
+
+    try {
+        const report = await mobileService.getMonthlyReport({ accessSeed });
+
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mobile session not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: report
+        });
+    } catch (error) {
+        return sendControllerError(res, error, 'Could not fetch mobile monthly report');
+    }
+};
+
 module.exports = {
     loginSecure,
-    validateAccess
+    validateAccess,
+    getMe,
+    getMonthlyReport
 };

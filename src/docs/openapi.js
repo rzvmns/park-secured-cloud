@@ -195,6 +195,16 @@ const openApiSpec = {
                     }
                 }
             },
+            MobileSeedRequest: {
+                type: 'object',
+                required: ['accessSeed'],
+                properties: {
+                    accessSeed: {
+                        type: 'string',
+                        example: '4D7C4F6F1B2A4E6D8C9A0B1C2D3E4F506172839405A6B7C8D9E0F11223344556'
+                    }
+                }
+            },
             GateAccessListItem: {
                 type: 'object',
                 properties: {
@@ -556,6 +566,24 @@ const openApiSpec = {
                 }
             }
         },
+        '/access-events/export.csv': {
+            get: {
+                tags: ['Access Events'],
+                summary: 'Export access events as CSV',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { name: 'employeeId', in: 'query', schema: { type: 'integer' } },
+                    { name: 'divisionId', in: 'query', schema: { type: 'integer' } },
+                    { name: 'eventType', in: 'query', schema: { type: 'string', enum: ['ENTRY', 'EXIT'] } },
+                    { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+                    { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } }
+                ],
+                responses: {
+                    200: { description: 'CSV export' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
         '/access/validate-seed': {
             post: {
                 tags: ['Access Events'],
@@ -632,6 +660,44 @@ const openApiSpec = {
                 }
             }
         },
+        '/mobile/me': {
+            post: {
+                tags: ['Mobile Compatibility'],
+                summary: 'Get mobile employee/device data by accessSeed',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/MobileSeedRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'Mobile profile data' },
+                    400: { description: 'Missing accessSeed' },
+                    404: { description: 'Mobile session not found' }
+                }
+            }
+        },
+        '/mobile/monthly-report': {
+            post: {
+                tags: ['Mobile Compatibility'],
+                summary: 'Get current month access report by accessSeed',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/MobileSeedRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'Mobile monthly report' },
+                    400: { description: 'Missing accessSeed' },
+                    404: { description: 'Mobile session not found' }
+                }
+            }
+        },
         '/validate-access': {
             post: {
                 tags: ['Mobile Compatibility'],
@@ -682,6 +748,17 @@ const openApiSpec = {
                             }
                         }
                     },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+        '/gate/status': {
+            get: {
+                tags: ['Gate'],
+                summary: 'Get demo gate status derived from the latest access event',
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    200: { description: 'Gate status' },
                     401: { $ref: '#/components/responses/Unauthorized' }
                 }
             }

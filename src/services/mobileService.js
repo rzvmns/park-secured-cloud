@@ -85,7 +85,122 @@ const validateAccess = async ({ accessSeed }) => {
     };
 };
 
+const getMobileSession = async (accessSeed) => {
+    const result = await query(
+        `SELECT s.smartphone_id,
+                s.platform,
+                s.device_identifier,
+                s.is_trusted,
+                s.registered_at,
+                e.employee_id,
+                e.first_name,
+                e.last_name,
+                e.photo_url,
+                e.badge_code,
+                e.division_id,
+                d.name AS division_name,
+                e.bluetooth_code,
+                e.car_number,
+                e.access_start_time,
+                e.access_end_time,
+                e.is_active,
+                e.granted_by_account_id,
+                a.email AS granted_by_email
+         FROM smartphones s
+         INNER JOIN employees e ON e.employee_id = s.employee_id
+         INNER JOIN divisions d ON d.division_id = e.division_id
+         LEFT JOIN accounts a ON a.account_id = e.granted_by_account_id
+         WHERE s.access_seed = $1`,
+        [accessSeed]
+    );
+
+    return result.rows[0] || null;
+};
+
+const getMe = async ({ accessSeed }) => {
+    const session = await getMobileSession(accessSeed);
+
+    if (!session) {
+        return null;
+    }
+
+    return {
+        smartphone: {
+            smartphoneId: session.smartphone_id,
+            platform: session.platform,
+            deviceIdentifier: session.device_identifier,
+            isTrusted: session.is_trusted,
+            registeredAt: session.registered_at
+        },
+        employee: {
+            employeeId: session.employee_id,
+            firstName: session.first_name,
+            lastName: session.last_name,
+            photoUrl: session.photo_url,
+            badgeCode: session.badge_code,
+            divisionId: session.division_id,
+            divisionName: session.division_name,
+            bluetoothCode: session.bluetooth_code,
+            carNumber: session.car_number,
+            accessStartTime: session.access_start_time,
+            accessEndTime: session.access_end_time,
+            isActive: session.is_active,
+            grantedByAccountId: session.granted_by_account_id,
+            grantedByEmail: session.granted_by_email
+        }
+    };
+};
+
+const getMonthlyReport = async ({ accessSeed }) => {
+    const session = await getMobileSession(accessSeed);
+
+    if (!session) {
+        return null;
+    }
+
+    const result = await query(
+        `SELECT event_id,
+                employee_id,
+                smartphone_id,
+                event_type,
+                event_status,
+                event_time,
+                gate_code,
+                source,
+                notes
+         FROM access_events
+         WHERE employee_id = $1
+           AND event_time >= date_trunc('month', NOW())
+           AND event_time < date_trunc('month', NOW()) + INTERVAL '1 month'
+         ORDER BY event_time DESC`,
+        [session.employee_id]
+    );
+
+    const events = result.rows.map((event) => ({
+        eventId: event.event_id,
+        employeeId: event.employee_id,
+        smartphoneId: event.smartphone_id,
+        eventType: event.event_type,
+        eventStatus: event.event_status,
+        eventTime: event.event_time,
+        gateCode: event.gate_code,
+        source: event.source,
+        notes: event.notes
+    }));
+
+    return {
+        employeeId: session.employee_id,
+        month: new Date().toISOString().slice(0, 7),
+        totalEvents: events.length,
+        allowedEvents: events.filter((event) => event.eventStatus === 'ALLOWED').length,
+        deniedEvents: events.filter((event) => event.eventStatus === 'DENIED').length,
+        events
+    };
+};
+
 module.exports = {
     loginSecure,
-    validateAccess
+    validateAccess,
+    getMe,
+    getMonthlyReport
 };

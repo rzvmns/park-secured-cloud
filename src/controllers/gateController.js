@@ -17,6 +17,24 @@ const getGateAccessList = async (req, res) => {
     }
 };
 
+const getGateStatus = async (req, res) => {
+    try {
+        const status = await gateService.getGateStatus();
+
+        return res.status(200).json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Could not fetch gate status',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    getGateAccessList
+    getGateAccessList,
+    getGateStatus
 };

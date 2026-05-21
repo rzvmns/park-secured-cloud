@@ -216,6 +216,39 @@ const getAccessEvents = async (filters, user) => {
     return result.rows.map(toEventResponse);
 };
 
+const escapeCsvValue = (value) => {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    const stringValue = value instanceof Date ? value.toISOString() : String(value);
+
+    if (/[",\n\r]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+
+    return stringValue;
+};
+
+const getAccessEventsCsv = async (filters, user) => {
+    const events = await getAccessEvents(filters, user);
+    const columns = [
+        'eventId',
+        'employeeId',
+        'smartphoneId',
+        'eventType',
+        'eventStatus',
+        'eventTime',
+        'gateCode',
+        'source',
+        'notes'
+    ];
+
+    const rows = events.map((event) => columns.map((column) => escapeCsvValue(event[column])).join(','));
+
+    return [columns.join(','), ...rows].join('\n');
+};
+
 const getEventsForEmployee = async (employeeId, user) => {
     const scope = getAccessScope(user, 2);
     const result = await query(
@@ -234,5 +267,6 @@ module.exports = {
     createAccessEvent,
     validateAccessSeed,
     getAccessEvents,
+    getAccessEventsCsv,
     getEventsForEmployee
 };

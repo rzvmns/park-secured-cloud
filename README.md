@@ -78,7 +78,10 @@ POST /api/access-events
 GET  /api/access-events
 POST /api/access/validate-seed
 POST /api/mobile/login-secure
+POST /api/mobile/me
+POST /api/mobile/monthly-report
 POST /api/validate-access
+GET  /api/gate/status
 GET  /api/gate/access-list
 GET  /api/reports/individual/:employeeId
 GET  /api/reports/division/:divisionId
@@ -229,6 +232,8 @@ The mobile prototype from `message(3).txt` can use these compatibility endpoints
 
 ```text
 POST /api/mobile/login-secure
+POST /api/mobile/me
+POST /api/mobile/monthly-report
 POST /api/validate-access
 ```
 
@@ -250,6 +255,10 @@ Content-Type: application/json
 
 `POST /api/validate-access` receives only `accessSeed` and returns the mobile-compatible `authorized` response.
 
+`POST /api/mobile/me` receives `accessSeed` and returns the employee/device data that the mobile app can display: identity, division, car number, access interval and who granted access.
+
+`POST /api/mobile/monthly-report` receives `accessSeed` and returns the current month access events for that employee.
+
 Example:
 
 ```http
@@ -260,6 +269,8 @@ Content-Type: application/json
   "accessSeed": "<ACCESS_SEED>"
 }
 ```
+
+The same body shape is used by `/api/mobile/me` and `/api/mobile/monthly-report`.
 
 First, verify that the backend and PostgreSQL connection are working:
 

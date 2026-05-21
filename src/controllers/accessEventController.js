@@ -54,6 +54,23 @@ const getAccessEvents = async (req, res) => {
     }
 };
 
+const exportAccessEventsCsv = async (req, res) => {
+    try {
+        const csv = await accessEventService.getAccessEventsCsv(req.query, req.user);
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="parksecure-access-events.csv"');
+
+        return res.status(200).send(csv);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Could not export access events',
+            error: error.message
+        });
+    }
+};
+
 const validateAccessSeed = async (req, res) => {
     const { accessSeed, eventType, gateCode } = req.body;
 
@@ -89,5 +106,6 @@ const validateAccessSeed = async (req, res) => {
 module.exports = {
     createAccessEvent,
     getAccessEvents,
+    exportAccessEventsCsv,
     validateAccessSeed
 };

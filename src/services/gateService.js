@@ -52,6 +52,60 @@ const getGateAccessList = async () => {
     };
 };
 
+const getGateStatus = async () => {
+    const result = await query(
+        `SELECT ae.event_id,
+                ae.employee_id,
+                ae.event_type,
+                ae.event_status,
+                ae.event_time,
+                ae.gate_code,
+                ae.source,
+                ae.notes,
+                e.first_name,
+                e.last_name,
+                e.car_number,
+                e.photo_url
+         FROM access_events ae
+         INNER JOIN employees e ON e.employee_id = ae.employee_id
+         ORDER BY ae.event_time DESC
+         LIMIT 1`
+    );
+
+    const event = result.rows[0];
+
+    if (!event) {
+        return {
+            state: 'CLOSED',
+            led: 'YELLOW',
+            message: 'Gate online, no access events yet',
+            lastEvent: null
+        };
+    }
+
+    const allowed = event.event_status === 'ALLOWED';
+
+    return {
+        state: allowed ? 'OPENING' : 'CLOSED',
+        led: allowed ? 'GREEN' : 'RED',
+        message: allowed ? 'Last access was allowed' : 'Last access was denied',
+        lastEvent: {
+            eventId: event.event_id,
+            employeeId: event.employee_id,
+            employeeName: `${event.first_name} ${event.last_name}`,
+            carNumber: event.car_number,
+            photoUrl: event.photo_url,
+            eventType: event.event_type,
+            eventStatus: event.event_status,
+            eventTime: event.event_time,
+            gateCode: event.gate_code,
+            source: event.source,
+            notes: event.notes
+        }
+    };
+};
+
 module.exports = {
-    getGateAccessList
+    getGateAccessList,
+    getGateStatus
 };

@@ -49,6 +49,109 @@ const createAccessEvent = async (payload) => {
     return toEventResponse(result.rows[0]);
 };
 
+const isCurrentTimeInAccessWindow = (accessStartTime, accessEndTime) => {
+    if (!accessStartTime || !accessEndTime) {
+        return true;
+    }
+
+    const now = new Date();
+    const currentSeconds = (now.getHours() * 60 * 60) + (now.getMinutes() * 60) + now.getSeconds();
+    const toSeconds = (timeValue) => {
+        const [hours, minutes, seconds = '0'] = String(timeValue).split(':');
+        return (Number(hours) * 60 * 60) + (Number(minutes) * 60) + Number(seconds);
+    };
+    const startSeconds = toSeconds(accessStartTime);
+    const endSeconds = toSeconds(accessEndTime);
+
+    if (startSeconds <= endSeconds) {
+        return currentSeconds >= startSeconds && currentSeconds <= endSeconds;
+    }
+
+    return currentSeconds >= startSeconds || currentSeconds <= endSeconds;
+};
+
+const createSeedValidationEvent = async ({ employeeId, smartphoneId, eventType, eventStatus, gateCode, notes }) => {
+    return createAccessEvent({
+        employeeId,
+        smartphoneId,
+        eventType,
+        eventStatus,
+        gateCode,
+        source: 'seed-validation',
+        notes
+    });
+};
+
+const validateAccessSeed = async ({ accessSeed, eventType, gateCode }) => {
+    const result = await query(
+        `SELECT s.smartphone_id,
+                s.employee_id,
+                s.is_trusted,
+                e.first_name,
+                e.last_name,
+                e.car_number,
+                e.is_active,
+                e.access_start_time,
+                e.access_end_time
+         FROM smartphones s
+         INNER JOIN employees e ON e.employee_id = s.employee_id
+         WHERE s.access_seed = $1`,
+        [accessSeed]
+    );
+
+    const row = result.rows[0];
+
+    if (!row) {
+        return {
+            success: false,
+            status: 'DENIED',
+            message: 'Invalid access seed'
+        };
+    }
+
+    let status = 'ALLOWED';
+    let message = null;
+
+    if (!row.is_trusted) {
+        status = 'DENIED';
+        message = 'Smartphone is not trusted';
+    } else if (!row.is_active) {
+        status = 'DENIED';
+        message = 'Employee is inactive';
+    } else if (!isCurrentTimeInAccessWindow(row.access_start_time, row.access_end_time)) {
+        status = 'DENIED';
+        message = 'Access outside allowed interval';
+    }
+
+    await createSeedValidationEvent({
+        employeeId: row.employee_id,
+        smartphoneId: row.smartphone_id,
+        eventType,
+        eventStatus: status,
+        gateCode,
+        notes: message || 'Access seed validated'
+    });
+
+    if (status === 'DENIED') {
+        return {
+            success: false,
+            status,
+            message
+        };
+    }
+
+    return {
+        success: true,
+        status,
+        employee: {
+            employeeId: row.employee_id,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            carNumber: row.car_number
+        }
+    };
+};
+
 const getAccessEvents = async (filters, user) => {
     const params = [];
     const conditions = [];
@@ -113,6 +216,7 @@ const getEventsForEmployee = async (employeeId, user) => {
 
 module.exports = {
     createAccessEvent,
+    validateAccessSeed,
     getAccessEvents,
     getEventsForEmployee
 };

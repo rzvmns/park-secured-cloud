@@ -54,7 +54,40 @@ const getAccessEvents = async (req, res) => {
     }
 };
 
+const validateAccessSeed = async (req, res) => {
+    const { accessSeed, eventType, gateCode } = req.body;
+
+    if (!accessSeed || !eventType) {
+        return res.status(400).json({
+            success: false,
+            status: 'DENIED',
+            message: 'accessSeed and eventType are required'
+        });
+    }
+
+    if (!['ENTRY', 'EXIT'].includes(eventType)) {
+        return res.status(400).json({
+            success: false,
+            status: 'DENIED',
+            message: 'eventType must be ENTRY or EXIT'
+        });
+    }
+
+    try {
+        const validationResult = await accessEventService.validateAccessSeed({
+            accessSeed,
+            eventType,
+            gateCode
+        });
+
+        return res.status(200).json(validationResult);
+    } catch (error) {
+        return sendControllerError(res, error, 'Could not validate access seed');
+    }
+};
+
 module.exports = {
     createAccessEvent,
-    getAccessEvents
+    getAccessEvents,
+    validateAccessSeed
 };

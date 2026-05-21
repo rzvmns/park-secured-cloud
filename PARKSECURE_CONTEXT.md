@@ -801,3 +801,41 @@ Migratie noua pentru baze existente:
 ```powershell
 psql $env:DATABASE_URL -f db/migrations/002_add_hr_role.sql
 ```
+
+## Update 2026-05-21 - Validare Demo Access Seed
+
+A fost adaugat endpoint demo:
+
+```text
+POST /api/access/validate-seed
+```
+
+Autentificare:
+
+```text
+X-Gate-Api-Key: <GATE_API_KEY>
+```
+
+Body:
+
+```json
+{
+  "accessSeed": "<ACCESS_SEED>",
+  "eventType": "ENTRY",
+  "gateCode": "GATE-01"
+}
+```
+
+Reguli:
+
+- cauta `access_seed` in tabela `smartphones`
+- verifica `smartphones.is_trusted = true`
+- verifica `employees.is_active = true`
+- daca exista `access_start_time` si `access_end_time`, verifica ora curenta in interval
+- pentru seed gasit, scrie eveniment in `access_events` cu `ALLOWED` sau `DENIED`
+- pentru seed necunoscut, intoarce `DENIED`, dar nu poate scrie rand in `access_events` in schema actuala pentru ca `employee_id` este obligatoriu si nu se cunoaste angajatul
+
+Observatie:
+
+- Pentru demo se compara seed-ul plain text.
+- Pentru productie ar trebui stocat hash-ul seed-ului, nu seed-ul in clar.

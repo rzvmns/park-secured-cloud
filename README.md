@@ -72,6 +72,7 @@ POST /api/devices/register
 GET  /api/devices/:employeeId
 POST /api/access-events
 GET  /api/access-events
+POST /api/access/validate-seed
 GET  /api/gate/access-list
 GET  /api/reports/individual/:employeeId
 GET  /api/reports/division/:divisionId
@@ -264,6 +265,49 @@ Authorization: Bearer <TOKEN>
 
 The `GET /api/devices/<employeeId>` response does not return `accessSeed`.
 The seed is returned only when the device is registered or re-registered.
+
+Validate an `accessSeed` sent by ESP32/gate for the demo access flow:
+
+```http
+POST <RENDER_URL>/api/access/validate-seed
+X-Gate-Api-Key: <GATE_API_KEY>
+Content-Type: application/json
+
+{
+  "accessSeed": "<ACCESS_SEED>",
+  "eventType": "ENTRY",
+  "gateCode": "GATE-01"
+}
+```
+
+Allowed response:
+
+```json
+{
+  "success": true,
+  "status": "ALLOWED",
+  "employee": {
+    "employeeId": 1,
+    "firstName": "Ana",
+    "lastName": "Popescu",
+    "carNumber": "TM01ABC"
+  }
+}
+```
+
+Denied response:
+
+```json
+{
+  "success": false,
+  "status": "DENIED",
+  "message": "Invalid access seed"
+}
+```
+
+For demo, `accessSeed` is checked directly in PostgreSQL. For production, store and compare a hash instead of the plain seed.
+When a seed matches a known smartphone, the backend writes an `access_events` row with `ALLOWED` or `DENIED`.
+An unknown seed returns `DENIED` without an event row because there is no known `employee_id` for the current schema.
 
 Create an access event after the ESP32/gate has made the local access decision.
 Replace the `employeeId` and `smartphoneId` values with the IDs returned by the previous requests:

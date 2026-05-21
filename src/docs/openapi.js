@@ -144,6 +144,18 @@ const openApiSpec = {
                     notes: { type: 'string', nullable: true, example: 'Access granted by Bluetooth validation' }
                 }
             },
+            AccessSeedValidationRequest: {
+                type: 'object',
+                required: ['accessSeed', 'eventType'],
+                properties: {
+                    accessSeed: {
+                        type: 'string',
+                        example: '4D7C4F6F1B2A4E6D8C9A0B1C2D3E4F506172839405A6B7C8D9E0F11223344556'
+                    },
+                    eventType: { type: 'string', enum: ['ENTRY', 'EXIT'], example: 'ENTRY' },
+                    gateCode: { type: 'string', nullable: true, example: 'GATE-01' }
+                }
+            },
             GateAccessListItem: {
                 type: 'object',
                 properties: {
@@ -500,6 +512,61 @@ const openApiSpec = {
                 },
                 responses: {
                     201: { description: 'Access event created' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+        '/access/validate-seed': {
+            post: {
+                tags: ['Access Events'],
+                summary: 'Validate a mobile access seed for gate demo flow',
+                description: 'Demo endpoint for ESP32/gate. It checks accessSeed against smartphones, verifies trusted smartphone, active employee and access interval, then writes an access event for matched seeds. Invalid unknown seeds return DENIED without an access_events row because employee_id is unknown.',
+                security: [{ gateApiKey: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/AccessSeedValidationRequest' }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Validation result',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    oneOf: [
+                                        {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                status: { type: 'string', example: 'ALLOWED' },
+                                                employee: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        employeeId: { type: 'integer', example: 1 },
+                                                        firstName: { type: 'string', example: 'Ana' },
+                                                        lastName: { type: 'string', example: 'Popescu' },
+                                                        carNumber: { type: 'string', nullable: true, example: 'TM01ABC' }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: false },
+                                                status: { type: 'string', example: 'DENIED' },
+                                                message: { type: 'string', example: 'Invalid access seed' }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    400: { description: 'Invalid request body' },
                     401: { $ref: '#/components/responses/Unauthorized' }
                 }
             }

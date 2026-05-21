@@ -1,6 +1,7 @@
 @baseUrl = <RENDER_URL>
 @token = <JWT_TOKEN>
 @gateApiKey = <GATE_API_KEY>
+@accessSeed = <ACCESS_SEED>
 @employeeId = 1
 @divisionId = 1
 @smartphoneId = 1
@@ -128,6 +129,17 @@ Content-Type: application/json
   "gateCode": "GATE-01",
   "source": "esp32",
   "notes": "Gate event after local validation"
+}
+
+### Validate access seed with gate API key
+POST {{baseUrl}}/api/access/validate-seed
+X-Gate-Api-Key: {{gateApiKey}}
+Content-Type: application/json
+
+{
+  "accessSeed": "{{accessSeed}}",
+  "eventType": "ENTRY",
+  "gateCode": "GATE-01"
 }
 
 ### List access events

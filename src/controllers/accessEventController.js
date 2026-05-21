@@ -1,12 +1,27 @@
 const accessEventService = require('../services/accessEventService');
+const { sendControllerError } = require('../utils/apiErrors');
 
 const createAccessEvent = async (req, res) => {
-    const { employeeId } = req.body;
+    const { employeeId, eventType, eventStatus } = req.body;
 
-    if (!employeeId) {
+    if (!employeeId || !eventType || !eventStatus) {
         return res.status(400).json({
             success: false,
-            message: 'employeeId is required'
+            message: 'employeeId, eventType and eventStatus are required'
+        });
+    }
+
+    if (!['ENTRY', 'EXIT'].includes(eventType)) {
+        return res.status(400).json({
+            success: false,
+            message: 'eventType must be ENTRY or EXIT'
+        });
+    }
+
+    if (!['ALLOWED', 'DENIED'].includes(eventStatus)) {
+        return res.status(400).json({
+            success: false,
+            message: 'eventStatus must be ALLOWED or DENIED'
         });
     }
 
@@ -18,11 +33,7 @@ const createAccessEvent = async (req, res) => {
             data: event
         });
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Could not create access event',
-            error: error.message
-        });
+        return sendControllerError(res, error, 'Could not create access event');
     }
 };
 

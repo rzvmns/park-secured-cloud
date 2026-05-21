@@ -6,6 +6,7 @@ const SmartphoneModel = {
         employeeId: 'INTEGER NOT NULL UNIQUE REFERENCES employees(employee_id)',
         platform: 'VARCHAR(20) NOT NULL',
         deviceIdentifier: 'VARCHAR(255) NOT NULL UNIQUE',
+        accessSeed: 'VARCHAR(64) NOT NULL UNIQUE',
         isTrusted: 'BOOLEAN NOT NULL DEFAULT TRUE',
         registeredAt: 'TIMESTAMPTZ NOT NULL DEFAULT NOW()'
     },

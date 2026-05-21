@@ -1,0 +1,119 @@
+@baseUrl = <RENDER_URL>
+@token = <JWT_TOKEN>
+@gateApiKey = <GATE_API_KEY>
+@employeeId = 1
+@divisionId = 1
+@smartphoneId = 1
+
+### Health
+GET {{baseUrl}}/api/health
+
+### Database test
+GET {{baseUrl}}/api/db-test
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@parksecure.local",
+  "password": "admin123"
+}
+
+### Create division
+POST {{baseUrl}}/api/divisions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Demo Security"
+}
+
+### List divisions
+GET {{baseUrl}}/api/divisions
+Authorization: Bearer {{token}}
+
+### Create employee
+POST {{baseUrl}}/api/employees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Andrei",
+  "lastName": "Popescu",
+  "cnp": "1990101123456",
+  "photoUrl": "https://example.com/andrei-popescu.jpg",
+  "badgeCode": "BADGE-DEMO-001",
+  "divisionId": {{divisionId}},
+  "bluetoothCode": "BT-DEMO-001",
+  "carNumber": "B123DEM",
+  "accessStartTime": "08:00",
+  "accessEndTime": "18:00",
+  "isActive": true
+}
+
+### List employees
+GET {{baseUrl}}/api/employees
+Authorization: Bearer {{token}}
+
+### Register or replace smartphone
+POST {{baseUrl}}/api/devices/register
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employeeId": {{employeeId}},
+  "platform": "android",
+  "deviceIdentifier": "android-demo-device-001",
+  "isTrusted": true
+}
+
+### Get smartphone by employee
+GET {{baseUrl}}/api/devices/{{employeeId}}
+Authorization: Bearer {{token}}
+
+### Create access event with JWT
+POST {{baseUrl}}/api/access-events
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employeeId": {{employeeId}},
+  "smartphoneId": {{smartphoneId}},
+  "eventType": "ENTRY",
+  "eventStatus": "ALLOWED",
+  "gateCode": "GATE-01",
+  "source": "web-demo",
+  "notes": "Demo access event"
+}
+
+### Create access event with gate API key
+POST {{baseUrl}}/api/access-events
+X-Gate-Api-Key: {{gateApiKey}}
+Content-Type: application/json
+
+{
+  "employeeId": {{employeeId}},
+  "smartphoneId": {{smartphoneId}},
+  "eventType": "EXIT",
+  "eventStatus": "ALLOWED",
+  "gateCode": "GATE-01",
+  "source": "esp32",
+  "notes": "Gate event after local validation"
+}
+
+### List access events
+GET {{baseUrl}}/api/access-events
+Authorization: Bearer {{token}}
+
+### Individual report
+GET {{baseUrl}}/api/reports/individual/{{employeeId}}
+Authorization: Bearer {{token}}
+
+### Division report
+GET {{baseUrl}}/api/reports/division/{{divisionId}}
+Authorization: Bearer {{token}}
+
+### Global report
+GET {{baseUrl}}/api/reports/global
+Authorization: Bearer {{token}}

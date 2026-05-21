@@ -1,4 +1,5 @@
 const divisionService = require('../services/divisionService');
+const { sendControllerError } = require('../utils/apiErrors');
 
 const getDivisions = async (req, res) => {
     try {
@@ -33,11 +34,7 @@ const createDivision = async (req, res) => {
             data: division
         });
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Could not create division',
-            error: error.message
-        });
+        return sendControllerError(res, error, 'Could not create division');
     }
 };
 

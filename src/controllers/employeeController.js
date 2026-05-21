@@ -1,4 +1,5 @@
 const employeeService = require('../services/employeeService');
+const { sendControllerError } = require('../utils/apiErrors');
 
 const getEmployees = async (req, res) => {
     try {
@@ -59,11 +60,7 @@ const createEmployee = async (req, res) => {
             data: employee
         });
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Could not create employee',
-            error: error.message
-        });
+        return sendControllerError(res, error, 'Could not create employee');
     }
 };
 
@@ -83,11 +80,7 @@ const updateEmployee = async (req, res) => {
             data: employee
         });
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Could not update employee',
-            error: error.message
-        });
+        return sendControllerError(res, error, 'Could not update employee');
     }
 };
 

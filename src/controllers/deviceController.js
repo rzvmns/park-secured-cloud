@@ -1,4 +1,5 @@
 const deviceService = require('../services/deviceService');
+const { sendControllerError } = require('../utils/apiErrors');
 
 const registerDevice = async (req, res) => {
     const { employeeId, platform, deviceIdentifier } = req.body;
@@ -25,11 +26,7 @@ const registerDevice = async (req, res) => {
             data: device
         });
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Could not register device',
-            error: error.message
-        });
+        return sendControllerError(res, error, 'Could not register device');
     }
 };
 

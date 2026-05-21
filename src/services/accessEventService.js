@@ -37,8 +37,8 @@ const createAccessEvent = async (payload) => {
         [
             payload.employeeId,
             payload.smartphoneId || null,
-            payload.eventType || 'ENTRY',
-            payload.eventStatus || 'ALLOWED',
+            payload.eventType,
+            payload.eventStatus,
             payload.eventTime || null,
             payload.gateCode || null,
             payload.source || 'gate',

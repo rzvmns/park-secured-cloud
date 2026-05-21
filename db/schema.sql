@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS smartphones (
     employee_id INTEGER NOT NULL UNIQUE REFERENCES employees(employee_id) ON DELETE CASCADE,
     platform VARCHAR(20) NOT NULL,
     device_identifier VARCHAR(255) NOT NULL UNIQUE,
+    access_seed VARCHAR(64) NOT NULL UNIQUE,
     is_trusted BOOLEAN NOT NULL DEFAULT TRUE,
     registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

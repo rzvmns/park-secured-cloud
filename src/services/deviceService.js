@@ -1,10 +1,14 @@
+const crypto = require('crypto');
 const { query } = require('../config/db');
 
-const toDeviceResponse = (device) => ({
+const generateAccessSeed = () => crypto.randomBytes(32).toString('hex').toUpperCase();
+
+const toDeviceResponse = (device, includeAccessSeed = false) => ({
     smartphoneId: device.smartphone_id,
     employeeId: device.employee_id,
     platform: device.platform,
     deviceIdentifier: device.device_identifier,
+    ...(includeAccessSeed ? { accessSeed: device.access_seed } : {}),
     isTrusted: device.is_trusted,
     registeredAt: device.registered_at
 });
@@ -32,19 +36,22 @@ const registerDevice = async ({ employeeId, platform, deviceIdentifier, isTruste
         return null;
     }
 
+    const accessSeed = generateAccessSeed();
+
     const result = await query(
-        `INSERT INTO smartphones (employee_id, platform, device_identifier, is_trusted)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (employee_id)
          DO UPDATE SET platform = EXCLUDED.platform,
                        device_identifier = EXCLUDED.device_identifier,
+                       access_seed = EXCLUDED.access_seed,
                        is_trusted = EXCLUDED.is_trusted,
                        registered_at = NOW()
-         RETURNING smartphone_id, employee_id, platform, device_identifier, is_trusted, registered_at`,
-        [employeeId, platform, deviceIdentifier, isTrusted]
+         RETURNING smartphone_id, employee_id, platform, device_identifier, access_seed, is_trusted, registered_at`,
+        [employeeId, platform, deviceIdentifier, accessSeed, isTrusted]
     );
 
-    return toDeviceResponse(result.rows[0]);
+    return toDeviceResponse(result.rows[0], true);
 };
 
 const getDeviceByEmployeeId = async (employeeId, user) => {

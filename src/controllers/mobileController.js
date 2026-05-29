@@ -30,6 +30,7 @@ const loginSecure = async (req, res) => {
             success: true,
             message: 'Autentificare reusita si sesiune unica activata.',
             accessSeed: result.accessSeed,
+            isNewDevice: result.isNewDevice,
             user: result.user
         });
     } catch (error) {

@@ -40,20 +40,30 @@ const loginSecure = async ({ email, password, platform, deviceIdentifier }) => {
 
     const accessSeed = crypto.randomBytes(32).toString('hex').toUpperCase();
 
+    // verifică dacă există deja un dispozitiv înregistrat pentru angajat
+    const existingDeviceResult = await query(
+        `SELECT device_identifier FROM smartphones WHERE employee_id = $1`,
+        [account.employee_id]
+    );
+
+    const existingDevice = existingDeviceResult.rows[0];
+    const isNewDevice = existingDevice && existingDevice.device_identifier !== deviceIdentifier;
+
+    // șterge device-ul vechi și înregistrează cel nou
     await query(
-        `DELETE FROM smartphones
-         WHERE employee_id = $1 OR device_identifier = $2`,
+        `DELETE FROM smartphones WHERE employee_id = $1 OR device_identifier = $2`,
         [account.employee_id, deviceIdentifier]
     );
 
-    await query(
-        `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
-         VALUES ($1, $2, $3, $4, true)`,
-        [account.employee_id, platform || 'mobile', deviceIdentifier, accessSeed]
-    );
+await query(
+    `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+     VALUES ($1, $2, $3, $4, true)`,
+    [account.employee_id, platform || 'mobile', deviceIdentifier, accessSeed]
+);
 
     return {
         accessSeed,
+        isNewDevice: !!isNewDevice, // trimitem înapoi dacă e sau nu dispozitiv nou
         user: {
             accountId: account.account_id,
             employeeId: account.employee_id,

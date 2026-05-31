@@ -103,9 +103,43 @@ const validateAccessSeed = async (req, res) => {
     }
 };
 
+const getPendingEvent = async (req, res) => {
+    const { eventId } = req.params;
+
+    try {
+        const event = await accessEventService.getPendingEvent(Number(eventId));
+
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Event not found' });
+        }
+
+        return res.status(200).json({ success: true, data: event });
+    } catch (error) {
+        return sendControllerError(res, error, 'Could not fetch pending event');
+    }
+};
+
+const resolveAccessEvent = async (req, res) => {
+    const { eventId } = req.params;
+    const { resolution } = req.body;
+
+    if (!resolution) {
+        return res.status(400).json({ success: false, message: 'resolution is required (ALLOWED or DENIED)' });
+    }
+
+    try {
+        const event = await accessEventService.resolveAccessEvent(Number(eventId), resolution);
+        return res.status(200).json({ success: true, data: event });
+    } catch (error) {
+        return sendControllerError(res, error, 'Could not resolve access event');
+    }
+};
+
 module.exports = {
     createAccessEvent,
     getAccessEvents,
     exportAccessEventsCsv,
-    validateAccessSeed
+    validateAccessSeed,
+    getPendingEvent,
+    resolveAccessEvent
 };

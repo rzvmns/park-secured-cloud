@@ -3,7 +3,9 @@ const {
     createAccessEvent,
     getAccessEvents,
     exportAccessEventsCsv,
-    validateAccessSeed
+    validateAccessSeed,
+    getPendingEvent,
+    resolveAccessEvent
 } = require('../controllers/accessEventController');
 const { authenticate, authenticateGate, authenticateGateOrUser, authorize } = require('../middlewares/authMiddleware');
 const { READ_ROLES } = require('../utils/roles');
@@ -14,5 +16,11 @@ router.post('/access-events', authenticateGateOrUser, createAccessEvent);
 router.get('/access-events/export.csv', authenticate, authorize(...READ_ROLES), exportAccessEventsCsv);
 router.get('/access-events', authenticate, authorize(...READ_ROLES), getAccessEvents);
 router.post('/access/validate-seed', authenticateGate, validateAccessSeed);
+
+// Polling status eveniment PENDING (apelat de mobil)
+router.get('/access-events/:eventId/status', getPendingEvent);
+
+// Rezolvare eveniment PENDING de către portar (apelat de dashboard)
+router.patch('/access-events/:eventId/resolve', authenticate, resolveAccessEvent);
 
 module.exports = router;

@@ -10,7 +10,8 @@ const toEventResponse = (event) => ({
     eventTime: event.event_time,
     gateCode: event.gate_code,
     source: event.source,
-    notes: event.notes
+    notes: event.notes,
+    resolvedAt: event.resolved_at
 });
 
 const getAccessScope = (user, startIndex = 1) => {
@@ -135,11 +136,11 @@ const validateAccessSeed = async ({ accessSeed, eventType, gateCode }) => {
         status = 'DENIED';
         message = 'Employee is inactive';
     } else if (!isCurrentTimeInAccessWindow(row.access_start_time, row.access_end_time)) {
-        status = 'DENIED';
-        message = 'Access outside allowed interval';
+        status = 'PENDING';
+        message = `Access outside allowed interval (${row.access_start_time} - ${row.access_end_time})`;
     }
 
-    await createSeedValidationEvent({
+    const event = await createSeedValidationEvent({
         employeeId: row.employee_id,
         smartphoneId: row.smartphone_id,
         eventType,
@@ -152,6 +153,15 @@ const validateAccessSeed = async ({ accessSeed, eventType, gateCode }) => {
         return {
             success: false,
             status,
+            message
+        };
+    }
+
+    if (status === 'PENDING') {
+        return {
+            success: false,
+            status: 'PENDING',
+            eventId: event.eventId,
             message
         };
     }
@@ -263,10 +273,64 @@ const getEventsForEmployee = async (employeeId, user) => {
     return result.rows.map(toEventResponse);
 };
 
+const getPendingEvent = async (eventId) => {
+    const result = await query(
+        `SELECT ae.*,
+                e.first_name,
+                e.last_name,
+                e.access_start_time,
+                e.access_end_time,
+                d.name AS division_name
+         FROM access_events ae
+         INNER JOIN employees e ON e.employee_id = ae.employee_id
+         INNER JOIN divisions d ON d.division_id = e.division_id
+         WHERE ae.event_id = $1`,
+        [eventId]
+    );
+
+    const row = result.rows[0];
+    if (!row) return null;
+
+    return {
+        ...toEventResponse(row),
+        employeeName: `${row.first_name} ${row.last_name}`,
+        division: row.division_name,
+        accessStartTime: row.access_start_time,
+        accessEndTime: row.access_end_time
+    };
+};
+
+const resolveAccessEvent = async (eventId, resolution) => {
+    if (!['ALLOWED', 'DENIED'].includes(resolution)) {
+        const error = new Error('resolution must be ALLOWED or DENIED');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const result = await query(
+        `UPDATE access_events
+         SET event_status = $1, resolved_at = NOW()
+         WHERE event_id = $2
+           AND event_status = 'PENDING'
+         RETURNING *`,
+        [resolution, eventId]
+    );
+
+    if (result.rowCount === 0) {
+        const error = new Error('Event not found or already resolved');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return toEventResponse(result.rows[0]);
+};
+
 module.exports = {
     createAccessEvent,
     validateAccessSeed,
     getAccessEvents,
     getAccessEventsCsv,
-    getEventsForEmployee
+    getEventsForEmployee,
+    getPendingEvent,
+    resolveAccessEvent
 };

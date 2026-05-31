@@ -49,7 +49,7 @@ const validateAccess = async (req, res) => {
     }
 
     try {
-        const result = await mobileService.validateAccess({ accessSeed });
+        const result = await mobileService.validateAccess({ accessSeed, eventType: eventType || 'ENTRY' });
         const statusCode = result.authorized ? 200 : 403;
 
         return res.status(statusCode).json(result);

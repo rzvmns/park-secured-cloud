@@ -77,7 +77,7 @@ await query(
 const validateAccess = async ({ accessSeed }) => {
     const result = await accessEventService.validateAccessSeed({
         accessSeed,
-        eventType: 'ENTRY',
+        eventType,
         gateCode: 'GATE_MAIN'
     });
 
